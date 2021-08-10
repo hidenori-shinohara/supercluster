@@ -58,6 +58,100 @@ and qsetOfNodeInnerQset
     let q = new PubnetNode.SbQuorumSet(iq.JsonValue)
     qsetOfNodeQset pubKeysToValidators q
 
+// For testing purposes, I made these numbers much smaller
+let peerCountTier1 (random: System.Random) : int = random.Next(1, 10)
+let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 10)
+// let peerCountTier1 (random: System.Random) : int = random.Next(25, 81)
+// let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 71)
+
+// Add `newNodes` to `original` while adding edges.
+// The degree of each new node is determined by
+// 1. Check if it's a tier-1 node by `tier1KeySet`.
+// 2. Use peerCountTier1 or peerCountNonTier1 to decide.
+//
+// To preserve the degree of each existing node in `original`
+// each new node's edges come from splitting an existing edge.
+//
+// More specifically, if we're adding a new node u,
+// then we pick a random edge (a, b), remove (a, b) and add (a, u) and (u, b).
+// We continue this process until u has a desired degree.
+let addEdges
+    (original: PubnetNode.Root array)
+    (newNodes: PubnetNode.Root array)
+    (tier1KeySet: Set<string>)
+    (random: System.Random)
+    : Map<string, string list> =
+    let getEdgesFromNode (node: PubnetNode.Root) : (string * string) array =
+        node.Peers
+        |> Array.filter (fun peer -> peer < node.PublicKey) // This filter ensures that we add each edge exactly once.
+        |> Array.map (fun peer -> (peer, node.PublicKey))
+
+    let edgeArray : (string * string) array = original |> Array.map getEdgesFromNode |> Array.reduce Array.append
+
+    // This is a silly "arraylist"
+    let mutable edgeList : Map<int, string * string> =
+        Array.init (Array.length edgeArray) (fun index -> (index, edgeArray.[index]))
+        |> Map.ofArray
+
+    let mutable edgeSet : Set<string * string> = edgeArray |> Set.ofArray
+
+    printfn "edgeSet has size %d" (Set.count edgeSet)
+
+    for newNode in newNodes do
+        let u = newNode.PublicKey
+
+        let mutable degreeRemaining =
+            if Set.contains u tier1KeySet then
+                peerCountTier1 random
+            else
+                peerCountNonTier1 random
+
+        let maxRetryCount = 100
+
+        for i in 1 .. maxRetryCount do
+            if degreeRemaining > 0 then
+                let index = random.Next(0, Set.count edgeSet)
+                printfn "%d was chosen as index" index
+                let edge : string * string = edgeList.[index]
+                let a = fst edge
+                let b = snd edge
+                printfn "a = %s, b = %s, u = %s" (a.[0..5]) (b.[0..5]) (u.[0..5])
+                let maybeNewEdge1 = if a < u then (a, u) else (u, a)
+                let maybeNewEdge2 = if b < u then (b, u) else (u, b)
+                if a = u then printfn "a = u"
+                if b = u then printfn "b = u"
+                if Set.contains maybeNewEdge1 edgeSet then printfn "edge 1"
+                if Set.contains maybeNewEdge2 edgeSet then printfn "edge 2"
+
+                if (a <> u)
+                   && (b <> u)
+                   && (not (Set.contains maybeNewEdge1 edgeSet))
+                   && (not (Set.contains maybeNewEdge2 edgeSet)) then
+                    degreeRemaining <- degreeRemaining - 2
+                    // A bit tricky, but...
+                    // 1. Replace the current edge with maybeNewEdge1
+                    // 2. Append maybeNewEdge2
+                    //
+                    // This ensures that edgeList is exactly the list of all edges,
+                    // nothing more, nothing less.
+                    edgeList <- edgeList.Add(index, maybeNewEdge1)
+                    edgeList <- edgeList.Add(Set.count edgeSet, maybeNewEdge2)
+                    edgeSet <- edgeSet.Add(maybeNewEdge1)
+                    edgeSet <- edgeSet.Add(maybeNewEdge2)
+                    edgeSet <- edgeSet.Remove(edge)
+                    printfn "Added an edge"
+
+        if degreeRemaining > 0 then
+            LogError "After %d attempts, we could not find an edge for %s" maxRetryCount u
+
+    let ls : (string * string) list = Set.toList edgeSet
+    let ls : (string * string) list = ls |> List.append (List.map (fun (x, y) -> (y, x)) ls)
+    let groupedList : (string * ((string * string) list)) list = List.groupBy fst ls
+    let groupedList2 : (string * (string list)) list = List.map (fun (x, y) -> (x, List.map snd y)) groupedList
+    let peerMap : Map<string, string list> = groupedList2 |> Map.ofList
+    peerMap
+
+
 
 let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet list =
 
@@ -69,10 +163,37 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
 
     let allPubnetNodes : PubnetNode.Root array = PubnetNode.Load(context.pubnetData.Value)
 
+    // TODO: take these counts from the context
+    let tier1Cnt = 5
+    let nonTier1Cnt = 10
+    // A Random object with a fixed seed.
+    let random = System.Random 0
+    let createRandomPubKey : string = new System.String([| for i in 0 .. 10 -> "0123456789".[random.Next(10)] |])
+    // TODO: create the public key randomly
+    let createEmptyNode : PubnetNode.Root =
+        PubnetNode.Parse(sprintf """ [{ "publicKey": "G%s" }] """ createRandomPubKey).[0]
+
+    printfn "hello world, hopefully this gets printed before the error message"
+
+    let newTier1Nodes = [ for i in 1 .. tier1Cnt -> createEmptyNode ] |> Array.ofList
+    //            |> List.map (fun n -> { n with PubnetNode.numTotalInboundPeers = if Set.contains u tier1KeySet then peerCountTier1 random else peerCountNonTier1 random })
+    let newNonTier1Nodes = [ for i in 1 .. nonTier1Cnt -> createEmptyNode ] |> Array.ofList
+
     let tier1KeySet : Set<string> =
+        let newTier1Keys = Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) newTier1Nodes in
+
         Tier1PublicKey.Load(context.tier1Keys.Value)
         |> Array.map (fun n -> n.PublicKey)
+        |> Array.append newTier1Keys
         |> Set.ofArray
+
+
+    // shuffle the nodes since the order may matter
+    let newNodes =
+        Array.append newTier1Nodes newNonTier1Nodes
+        |> Array.sortBy (fun _ -> random.Next())
+
+    let allPubnetNodes = allPubnetNodes |> Array.append newTier1Nodes |> Array.append newNonTier1Nodes
 
     // For each pubkey in the pubnet, we map it to an actual KeyPair (with a private
     // key) to use in the simulation. It's important to keep these straight! The keys
@@ -130,6 +251,7 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
                 let lowercase = cleanOrgName.ToLower()
                 HomeDomainName lowercase)
             orgNodes
+
 
     // Then build a map from accountID to HomeDomainName and index-within-domain
     // for each org node.
@@ -236,6 +358,8 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
           keys = keys
           live = true }
 
+    let edgeMap = addEdges allPubnetNodes newNodes tier1KeySet random
+
     let preferredPeersMapForAllNodes : Map<byte [], byte [] list> =
         let getSimPubKey (k: string) = (getSimKey k).PublicKey
 
@@ -245,12 +369,11 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
                 let key = getSimPubKey n.PublicKey
 
                 let peers =
-                    n.Peers
+                    Map.find n.PublicKey edgeMap
                     |>
                     // This filtering is necessary since we intentionally remove some nodes
                     // using networkSizeLimit.
-                    Array.filter (fun (k: string) -> Set.contains k allPubnetNodeKeys)
-                    |> List.ofArray
+                    List.filter (fun (k: string) -> Set.contains k allPubnetNodeKeys)
                     |> List.map getSimPubKey
 
                 (key, peers))

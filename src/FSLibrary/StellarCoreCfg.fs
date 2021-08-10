@@ -19,7 +19,12 @@ module CfgVal =
     let labels = Map.ofSeq [ "app", "stellar-core" ]
     let labelSelector = "app = stellar-core"
     let stellarCoreBinPath = "stellar-core"
-    let stellarCoreContainerName (cmd: string) = "stellar-core-" + cmd
+    let allCoreContainerCmds = [| "new-hist"; "new-db"; "catchup"; "run" |]
+
+    let stellarCoreContainerName (cmd: string) =
+        assert (Array.contains cmd allCoreContainerCmds)
+        "stellar-core-" + cmd
+
     let dataVolumeName = "data-volume"
     let dataVolumePath = "/data"
     let databasePath = dataVolumePath + "/stellar.db"
@@ -162,8 +167,8 @@ type StellarCoreCfg =
         t.Add("DATABASE", self.database.ToString()) |> ignore
 
         match self.containerType with
-        | MainCoreContainer -> t.Add("HTTP_PORT", int64 (CfgVal.httpPort)) |> ignore
-        | InitCoreContainer -> t.Add("HTTP_PORT", 0) |> ignore
+        // REVERTME: temporarily use same nonzero port for both container types.
+        | _ -> t.Add("HTTP_PORT", int64 (CfgVal.httpPort)) |> ignore
 
         t.Add("PUBLIC_HTTP_PORT", true) |> ignore
         t.Add("BUCKET_DIR_PATH", CfgVal.bucketsPath) |> ignore
