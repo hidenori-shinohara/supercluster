@@ -58,6 +58,40 @@ and qsetOfNodeInnerQset
     let q = new PubnetNode.SbQuorumSet(iq.JsonValue)
     qsetOfNodeQset pubKeysToValidators q
 
+let createEmptyNode : PubnetNode.Root = failwith "not implemented yet"
+
+let peerCountTier1 (random: System.Random) : int = random.Next(25, 81)
+let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 71)
+
+// Add `newNodes` to `original` while adding edges.
+// The degree of each new node is determined by
+// 1. Check if it's a tier-1 node by `tier1KeySet`.
+// 2. Use peerCountTier1 or peerCountNonTier1 to decide.
+//
+// To preserve the degree of each existing node in `original`
+// each new node's edges come from splitting an existing edge.
+//
+// More specifically, if we're adding a new node u,
+// then we pick a random edge (a, b), remove (a, b) and add (a, u) and (u, b).
+// We continue this process until u has a desired degree.
+let addEdges
+    (original: PubnetNode.Root array)
+    (newNodes: PubnetNode.Root array)
+    (tier1KeySet: Set<string>)
+    (random: System.Random)
+    : PubnetNode.Root array =
+    let getEdgesFromNode (node: PubnetNode.Root) : (string * string) array =
+        node.Peers
+        |> Array.filter (fun peer -> peer < node.PublicKey) // This filter ensures that we add each edge exactly once.
+        |> Array.map (fun peer -> (peer, node.PublicKey))
+
+    let edgeArray : (string * string) array = original |> Array.map getEdgesFromNode |> Array.reduce Array.append
+
+    let edgeArrayList : System.Collections.ArrayList = edgeArray |> System.Collections.ArrayList
+
+    let edgeSet : Set<string * string> = edgeArray |> Set.ofArray
+
+    failwith "undefined"
 
 let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet list =
 
@@ -69,10 +103,29 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
 
     let allPubnetNodes : PubnetNode.Root array = PubnetNode.Load(context.pubnetData.Value)
 
+    let tier1Cnt = failwith "not implemented yet"
+    let nonTier1Cnt = failwith "not implemented yet"
+    let newTier1Nodes = [ for i in 1 .. tier1Cnt -> createEmptyNode ] |> Array.ofList
+    let newNonTier1Nodes = [ for i in 1 .. nonTier1Cnt -> createEmptyNode ] |> Array.ofList
+
     let tier1KeySet : Set<string> =
+        let newTier1Keys = Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) newTier1Nodes in
+
         Tier1PublicKey.Load(context.tier1Keys.Value)
         |> Array.map (fun n -> n.PublicKey)
+        |> Array.append newTier1Keys
         |> Set.ofArray
+
+
+    // A Random object with a fixed seed.
+    let random = System.Random 0
+
+    // shuffle the nodes since the order may matter
+    let newNodes =
+        Array.append newTier1Nodes newNonTier1Nodes
+        |> Array.sortBy (fun _ -> random.Next())
+
+    let allPubnetNodes = addEdges allPubnetNodes newNodes tier1KeySet random
 
     // For each pubkey in the pubnet, we map it to an actual KeyPair (with a private
     // key) to use in the simulation. It's important to keep these straight! The keys
