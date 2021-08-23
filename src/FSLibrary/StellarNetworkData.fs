@@ -134,12 +134,7 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         failwith "pubnet simulation requires --tier1-keys=<filename.json>"
 
     let allPubnetNodes : PubnetNode.Root array = PubnetNode.Load(context.pubnetData.Value)
-    let node : PubnetNode.Root = allPubnetNodes.[0]
-    let node2 : PubnetNode.Root =
-        ["username", JsonValue.String "abc"
-         "email", JsonValue.String "a@b.c"]
-            |> Map.ofSeq
-            |> JsonValue.Object
+    let node : PubnetNode.Root = PubnetNode.Parse(""" [] """).[0]
 
     // TODO: take these counts from the context
     let tier1Cnt = 5
