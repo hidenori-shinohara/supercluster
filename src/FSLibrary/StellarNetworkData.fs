@@ -119,7 +119,7 @@ let addEdges
                     failwith "undefined"
 
         if degreeRemaining > 0 then
-            LogError "After %d attempts, we couldn't find an edge for %s" maxRetryCount u
+            LogError "After %d attempts, we could not find an edge for %s" maxRetryCount u
 
         failwith "undefined"
 
@@ -134,14 +134,14 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         failwith "pubnet simulation requires --tier1-keys=<filename.json>"
 
     let allPubnetNodes : PubnetNode.Root array = PubnetNode.Load(context.pubnetData.Value)
-    let node : PubnetNode.Root = PubnetNode.Parse(""" [] """).[0]
 
     // TODO: take these counts from the context
     let tier1Cnt = 5
     let nonTier1Cnt = 10
+    // TODO: create the public key randomly
+    let createEmptyNode : PubnetNode.Root = PubnetNode.Parse(""" [{ "publicKey": "GCP7LQUW5UXXDNQI4ENXTUULZOIEIR6UDRC5S3VN6ZGKMOZ6TL3YB6IS" }] """).[0]
+
     printfn "hello world, hopefully this gets printed before the error message"
-    printfn "%s" (allPubnetNodes.GetType().ToString())
-    let createEmptyNode : PubnetNode.Root = failwith "hello world, this is not working"
 
     let newTier1Nodes =
             [ for i in 1 .. tier1Cnt -> createEmptyNode ]
