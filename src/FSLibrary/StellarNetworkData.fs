@@ -85,14 +85,17 @@ let addEdges
 
     let edgeArray : (string * string) array = original |> Array.map getEdgesFromNode |> Array.reduce Array.append
 
-    let edgeArrayList : System.Collections.ArrayList = edgeArray |> System.Collections.ArrayList
+    // This is a silly "arraylist"
+    let mutable edgeList : Map<int, string * string> =
+        Array.init (Array.length edgeArray) (fun index -> (index, edgeArray.[index]))
+        |> Map.ofArray
 
-    let edgeSet : Set<string * string> = edgeArray |> Set.ofArray
+    let mutable edgeSet : Set<string * string> = edgeArray |> Set.ofArray
 
     for newNode in newNodes do
         let u = newNode.PublicKey
 
-        let degreeRemaining =
+        let mutable degreeRemaining =
             if Set.contains u tier1KeySet then
                 peerCountTier1 random
             else
@@ -103,7 +106,7 @@ let addEdges
         for i in 1 .. maxRetryCount do
             if degreeRemaining > 0 then
                 let index = random.Next(0, Set.count edgeSet)
-                let edge : string * string = downcast (edgeArrayList.[index])
+                let edge : string * string = edgeList.[index]
                 let a = fst edge
                 let b = snd edge
                 let maybeNewEdge1 = if a < u then (a, u) else (u, a)
@@ -113,17 +116,23 @@ let addEdges
                    && (b <> u)
                    && (not (Set.contains maybeNewEdge1 edgeSet))
                    && (not (Set.contains maybeNewEdge2 edgeSet)) then
-                    let degreeRemaining = degreeRemaining - 2
-//                    let edgeArray.[index] = maybeNewEdge1
-                    edgeArrayList.Add maybeNewEdge2
-                    failwith "undefined"
+                    degreeRemaining <- degreeRemaining - 2
+                    // A bit tricky, but...
+                    // 1. Replace the current edge with maybeNewEdge1
+                    // 2. Append maybeNewEdge2
+                    //
+                    // This ensures that edgeList is exactly the list of all edges,
+                    // nothing more, nothing less.
+                    edgeList <- edgeList.Add(index, maybeNewEdge1)
+                    edgeList <- edgeList.Add(Set.count edgeSet, maybeNewEdge2)
+                    edgeSet <- edgeSet.Add(maybeNewEdge1)
+                    edgeSet <- edgeSet.Add(maybeNewEdge2)
+                    edgeSet <- edgeSet.Remove(edge)
 
         if degreeRemaining > 0 then
             LogError "After %d attempts, we could not find an edge for %s" maxRetryCount u
 
-        failwith "undefined"
-
-    failwith "undefined"
+    failwith "undefined 135"
 
 let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet list =
 
@@ -139,14 +148,13 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
     let tier1Cnt = 5
     let nonTier1Cnt = 10
     // TODO: create the public key randomly
-    let createEmptyNode : PubnetNode.Root = PubnetNode.Parse(""" [{ "publicKey": "GCP7LQUW5UXXDNQI4ENXTUULZOIEIR6UDRC5S3VN6ZGKMOZ6TL3YB6IS" }] """).[0]
+    let createEmptyNode : PubnetNode.Root =
+        PubnetNode.Parse(""" [{ "publicKey": "GCP7LQUW5UXXDNQI4ENXTUULZOIEIR6UDRC5S3VN6ZGKMOZ6TL3YB6IS" }] """).[0]
 
     printfn "hello world, hopefully this gets printed before the error message"
 
-    let newTier1Nodes =
-            [ for i in 1 .. tier1Cnt -> createEmptyNode ]
-            |> Array.ofList
-//            |> List.map (fun n -> { n with PubnetNode.numTotalInboundPeers = if Set.contains u tier1KeySet then peerCountTier1 random else peerCountNonTier1 random })
+    let newTier1Nodes = [ for i in 1 .. tier1Cnt -> createEmptyNode ] |> Array.ofList
+    //            |> List.map (fun n -> { n with PubnetNode.numTotalInboundPeers = if Set.contains u tier1KeySet then peerCountTier1 random else peerCountNonTier1 random })
     let newNonTier1Nodes = [ for i in 1 .. nonTier1Cnt -> createEmptyNode ] |> Array.ofList
 
     let tier1KeySet : Set<string> =
