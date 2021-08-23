@@ -147,9 +147,12 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
     // TODO: take these counts from the context
     let tier1Cnt = 5
     let nonTier1Cnt = 10
+    // A Random object with a fixed seed.
+    let random = System.Random 0
+    let createRandomPubKey : string = new System.String([|for i in 0..10 -> "0123456789".[random.Next(10)]|])
     // TODO: create the public key randomly
     let createEmptyNode : PubnetNode.Root =
-        PubnetNode.Parse(""" [{ "publicKey": "GCP7LQUW5UXXDNQI4ENXTUULZOIEIR6UDRC5S3VN6ZGKMOZ6TL3YB6IS" }] """).[0]
+        PubnetNode.Parse(sprintf """ [{ "publicKey": "G%s" }] """ createRandomPubKey).[0]
 
     printfn "hello world, hopefully this gets printed before the error message"
 
@@ -165,9 +168,6 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         |> Array.append newTier1Keys
         |> Set.ofArray
 
-
-    // A Random object with a fixed seed.
-    let random = System.Random 0
 
     // shuffle the nodes since the order may matter
     let newNodes =
