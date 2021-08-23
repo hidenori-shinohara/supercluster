@@ -58,8 +58,11 @@ and qsetOfNodeInnerQset
     let q = new PubnetNode.SbQuorumSet(iq.JsonValue)
     qsetOfNodeQset pubKeysToValidators q
 
-let peerCountTier1 (random: System.Random) : int = random.Next(25, 81)
-let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 71)
+// For testing purposes, I made these numbers much smaller
+let peerCountTier1 (random: System.Random) : int = random.Next(1, 10)
+let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 10)
+// let peerCountTier1 (random: System.Random) : int = random.Next(25, 81)
+// let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 71)
 
 // Add `newNodes` to `original` while adding edges.
 // The degree of each new node is determined by
@@ -92,6 +95,8 @@ let addEdges
 
     let mutable edgeSet : Set<string * string> = edgeArray |> Set.ofArray
 
+    printfn "edgeSet has size %d" (Set.count edgeSet)
+
     for newNode in newNodes do
         let u = newNode.PublicKey
 
@@ -106,11 +111,17 @@ let addEdges
         for i in 1 .. maxRetryCount do
             if degreeRemaining > 0 then
                 let index = random.Next(0, Set.count edgeSet)
+                printfn "%d was chosen as index" index
                 let edge : string * string = edgeList.[index]
                 let a = fst edge
                 let b = snd edge
+                printfn "a = %s, b = %s, u = %s" (a.[0..5]) (b.[0..5]) (u.[0..5])
                 let maybeNewEdge1 = if a < u then (a, u) else (u, a)
                 let maybeNewEdge2 = if b < u then (b, u) else (u, b)
+                if a = u then printfn "a = u"
+                if b = u then printfn "b = u"
+                if Set.contains maybeNewEdge1 edgeSet then printfn "edge 1"
+                if Set.contains maybeNewEdge2 edgeSet then printfn "edge 2"
 
                 if (a <> u)
                    && (b <> u)
@@ -128,6 +139,7 @@ let addEdges
                     edgeSet <- edgeSet.Add(maybeNewEdge1)
                     edgeSet <- edgeSet.Add(maybeNewEdge2)
                     edgeSet <- edgeSet.Remove(edge)
+                    printfn "Added an edge"
 
         if degreeRemaining > 0 then
             LogError "After %d attempts, we could not find an edge for %s" maxRetryCount u
@@ -149,7 +161,7 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
     let nonTier1Cnt = 10
     // A Random object with a fixed seed.
     let random = System.Random 0
-    let createRandomPubKey : string = new System.String([|for i in 0..10 -> "0123456789".[random.Next(10)]|])
+    let createRandomPubKey : string = new System.String([| for i in 0 .. 10 -> "0123456789".[random.Next(10)] |])
     // TODO: create the public key randomly
     let createEmptyNode : PubnetNode.Root =
         PubnetNode.Parse(sprintf """ [{ "publicKey": "G%s" }] """ createRandomPubKey).[0]
