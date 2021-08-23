@@ -99,6 +99,7 @@ type Tests(output: ITestOutputHelper) =
         Assert.Equal(nonceStr + "-sts-test-2." + domain, peer2DNS)
         Assert.Contains("DATABASE = \"sqlite3:///data/stellar.db\"", toml)
         Assert.Contains("BUCKET_DIR_PATH = \"/data/buckets\"", toml)
+        Assert.Equal(hello(), hello())
 
         Assert.Contains(
             "PREFERRED_PEERS = [\""

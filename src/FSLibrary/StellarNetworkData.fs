@@ -58,8 +58,6 @@ and qsetOfNodeInnerQset
     let q = new PubnetNode.SbQuorumSet(iq.JsonValue)
     qsetOfNodeQset pubKeysToValidators q
 
-let createEmptyNode : PubnetNode.Root = failwith "not implemented yet"
-
 let peerCountTier1 (random: System.Random) : int = random.Next(25, 81)
 let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 71)
 
@@ -91,6 +89,40 @@ let addEdges
 
     let edgeSet : Set<string * string> = edgeArray |> Set.ofArray
 
+    for newNode in newNodes do
+        let u = newNode.PublicKey
+
+        let degreeRemaining =
+            if Set.contains u tier1KeySet then
+                peerCountTier1 random
+            else
+                peerCountNonTier1 random
+
+        let maxRetryCount = 100
+
+        for i in 1 .. maxRetryCount do
+            if degreeRemaining > 0 then
+                let index = random.Next(0, Set.count edgeSet)
+                let edge : string * string = downcast (edgeArrayList.[index])
+                let a = fst edge
+                let b = snd edge
+                let maybeNewEdge1 = if a < u then (a, u) else (u, a)
+                let maybeNewEdge2 = if b < u then (b, u) else (u, b)
+
+                if (a <> u)
+                   && (b <> u)
+                   && (not (Set.contains maybeNewEdge1 edgeSet))
+                   && (not (Set.contains maybeNewEdge2 edgeSet)) then
+                    let degreeRemaining = degreeRemaining - 2
+//                    let edgeArray.[index] = maybeNewEdge1
+                    edgeArrayList.Add maybeNewEdge2
+                    failwith "undefined"
+
+        if degreeRemaining > 0 then
+            LogError "After %d attempts, we couldn't find an edge for %s" maxRetryCount u
+
+        failwith "undefined"
+
     failwith "undefined"
 
 let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet list =
@@ -102,10 +134,24 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         failwith "pubnet simulation requires --tier1-keys=<filename.json>"
 
     let allPubnetNodes : PubnetNode.Root array = PubnetNode.Load(context.pubnetData.Value)
+    let node : PubnetNode.Root = allPubnetNodes.[0]
+    let node2 : PubnetNode.Root =
+        ["username", JsonValue.String "abc"
+         "email", JsonValue.String "a@b.c"]
+            |> Map.ofSeq
+            |> JsonValue.Object
 
-    let tier1Cnt = failwith "not implemented yet"
-    let nonTier1Cnt = failwith "not implemented yet"
-    let newTier1Nodes = [ for i in 1 .. tier1Cnt -> createEmptyNode ] |> Array.ofList
+    // TODO: take these counts from the context
+    let tier1Cnt = 5
+    let nonTier1Cnt = 10
+    printfn "hello world, hopefully this gets printed before the error message"
+    printfn "%s" (allPubnetNodes.GetType().ToString())
+    let createEmptyNode : PubnetNode.Root = failwith "hello world, this is not working"
+
+    let newTier1Nodes =
+            [ for i in 1 .. tier1Cnt -> createEmptyNode ]
+            |> Array.ofList
+//            |> List.map (fun n -> { n with PubnetNode.numTotalInboundPeers = if Set.contains u tier1KeySet then peerCountTier1 random else peerCountNonTier1 random })
     let newNonTier1Nodes = [ for i in 1 .. nonTier1Cnt -> createEmptyNode ] |> Array.ofList
 
     let tier1KeySet : Set<string> =
@@ -183,6 +229,7 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
                 let lowercase = cleanOrgName.ToLower()
                 HomeDomainName lowercase)
             orgNodes
+
 
     // Then build a map from accountID to HomeDomainName and index-within-domain
     // for each org node.
