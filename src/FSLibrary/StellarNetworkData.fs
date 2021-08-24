@@ -58,11 +58,9 @@ and qsetOfNodeInnerQset
     let q = new PubnetNode.SbQuorumSet(iq.JsonValue)
     qsetOfNodeQset pubKeysToValidators q
 
-// For testing purposes, I made these numbers much smaller
-// TODO: For testing purposes, I made the number very small.
-let peerCountTier1 (random: System.Random) : int = 1 // random.Next(25, 81)
+let peerCountTier1 (random: System.Random) : int = random.Next(25, 81)
 
-let peerCountNonTier1 (random: System.Random) : int = 1 // if random.Next(2) = 0 then 8 else random.Next(1, 71)
+let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 71)
 
 let extractEdges (graph: PubnetNode.Root array) : (string * string) array =
     let getEdgesFromNode (node: PubnetNode.Root) : (string * string) array =
@@ -95,11 +93,13 @@ let createAdjacencyMap (edgeSet: Set<string * string>) : Map<string, string list
 // then we pick a random edge (a, b), remove (a, b) and add (a, u) and (u, b).
 // We continue this process until u has a desired degree.
 let addEdges
-    (edgeArray: (string * string) array)
+    (graph: PubnetNode.Root array)
     (newNodes: string array)
     (tier1KeySet: Set<string>)
     (random: System.Random)
     : Map<string, string list> =
+
+    let edgeArray = extractEdges graph
 
     // This is a silly "arraylist"
     let mutable edgeList : Map<int, string * string> =
@@ -118,6 +118,17 @@ let addEdges
                 peerCountTier1 random
             else
                 peerCountNonTier1 random
+
+
+        if degreeRemaining >= (Array.length graph) then
+            // The chosen degree is larger than the given graph's cardinality.
+            // This error is likely caused by passing the incorrect pubnet graph file.
+            // We choose to throw here because
+            // 1. This new node will have a degree significantly larger
+            //    than any node in the original graph.
+            // 2. The following algorithm will likely fail to find enough edges.
+            // 3. If we adjust `degreeRemaining`, then the degree distribution will be impacted.
+            failwith "The original graph is too small"
 
         let maxRetryCount = 100
 
@@ -378,11 +389,7 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
           live = true }
 
     let edgeMap =
-        addEdges
-            (extractEdges allPubnetNodes)
-            (Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) newNodes)
-            tier1KeySet
-            random
+        addEdges allPubnetNodes (Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) newNodes) tier1KeySet random
 
     let preferredPeersMapForAllNodes : Map<byte [], byte [] list> =
         let getSimPubKey (k: string) = (getSimKey k).PublicKey
