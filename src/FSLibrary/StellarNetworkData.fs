@@ -98,10 +98,7 @@ let addEdges
             //    than any node in the original graph.
             // 2. The following algorithm will likely fail to find enough edges.
             // 3. If we adjust `degreeRemaining`, then the degree distribution will be impacted.
-            // TODO: updated the followign for testing.
-            // fix that.
-            degreeRemaining <- 1
-        // failwith "The original graph is too small"
+            failwith "The original graph is too small"
 
         let maxRetryCount = 100
         let mutable errorCount = 0
@@ -109,34 +106,26 @@ let addEdges
         while degreeRemaining > 0 do
             let index = random.Next(0, Set.count edgeSet)
             let (a, b) = edgeList.[index]
-            let maybeNewEdge1 = if a < u then (a, u) else (u, a)
-            let maybeNewEdge2 = if b < u then (b, u) else (u, b)
-            if a = u then printfn "a = u"
-            if b = u then printfn "b = u"
-            if Set.contains maybeNewEdge1 edgeSet then printfn "edge 1"
-            if Set.contains maybeNewEdge2 edgeSet then printfn "edge 2"
+            let maybeNewEdge1 = (min a u, max a u)
+            let maybeNewEdge2 = (min b u, max b u)
 
             if (a <> u)
                && (b <> u)
                && (not (Set.contains maybeNewEdge1 edgeSet))
                && (not (Set.contains maybeNewEdge2 edgeSet)) then
                 degreeRemaining <- degreeRemaining - 2
-                // A bit tricky, but...
                 // 1. Replace the current edge with maybeNewEdge1
                 // 2. Append maybeNewEdge2
                 //
-                // This ensures that edgeList is exactly the list of all edges,
-                // nothing more, nothing less.
+                // This ensures that edgeList is exactly the list of all edges.
                 edgeList <- edgeList.Add(index, maybeNewEdge1)
                 edgeList <- edgeList.Add(Set.count edgeSet, maybeNewEdge2)
                 edgeSet <- edgeSet.Add(maybeNewEdge1)
                 edgeSet <- edgeSet.Add(maybeNewEdge2)
                 edgeSet <- edgeSet.Remove((a, b))
-                printfn "Added an edge"
                 errorCount <- 0
             else
                 errorCount <- errorCount + 1
-
                 if errorCount >= maxRetryCount then
                     failwith (sprintf "Unable to find an edge for %s after %d attempts" u maxRetryCount)
 
@@ -160,26 +149,21 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
     // A Random object with a fixed seed.
     let random = System.Random 0
 
-    // TODO: Why a random string?
-    // It is necessary to take a unit.
-    // Otherwise, it will call the random function only once.
-    let createRandomString _ : string = new System.String([| for i in 0 .. 10 -> "0123456789".[random.Next(10)] |])
-
     let _ = assert (tier1Cnt % 3 = 0)
 
     let newTier1Nodes =
         [ for i in 1 .. tier1Cnt ->
               PubnetNode.Parse(
                   sprintf
-                      """ [{ "publicKey": "G%s", "sb_homeDomain": "home.domain.%d" }] """
-                      (createRandomString ())
+                      """ [{ "publicKey": "TIER1-NODE-%d", "sb_homeDomain": "home.domain.%d" }] """
+                      i
                       ((i - 1) / 3)
               ).[0] ]
         |> Array.ofList
 
     let newNonTier1Nodes =
-        [ for _ in 1 .. nonTier1Cnt ->
-              PubnetNode.Parse(sprintf """ [{ "publicKey": "G%s" }] """ (createRandomString ())).[0] ]
+        [ for i in 1 .. nonTier1Cnt ->
+              PubnetNode.Parse(sprintf """ [{ "publicKey": "NON-TIER1-NODE-%d" }] """ i).[0] ]
         |> Array.ofList
 
     printfn "newTier1Nodes %A" newTier1Nodes
@@ -194,7 +178,8 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         |> Set.ofArray
 
 
-    // shuffle the nodes since the order may matter
+    // Shuffle the nodes to ensure that the order will
+    // not affect the outcome of the scaling algorithm.
     let newNodes =
         Array.append newTier1Nodes newNonTier1Nodes
         |> Array.sortBy (fun _ -> random.Next())
@@ -219,6 +204,9 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
             let k = KeyPair.Random()
             pubnetKeyToSimKey <- pubnetKeyToSimKey.Add(pubkey, k)
             k
+
+    let edgeMap =
+        addEdges allPubnetNodes (Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) newNodes) tier1KeySet random
 
     // First we partition nodes in the network into those that have home domains and
     // those that do not. We call the former "org" nodes and the latter "misc" nodes.
@@ -371,9 +359,6 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
           options = options
           keys = keys
           live = true }
-
-    let edgeMap =
-        addEdges allPubnetNodes (Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) newNodes) tier1KeySet random
 
     let preferredPeersMapForAllNodes : Map<byte [], byte [] list> =
         let getSimPubKey (k: string) = (getSimKey k).PublicKey
