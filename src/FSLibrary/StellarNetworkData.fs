@@ -72,7 +72,18 @@ let extractEdges (graph: PubnetNode.Root array) : (string * string) array =
 
     graph |> Array.map getEdgesFromNode |> Array.reduce Array.append
 
-// Add `newNodes` to `original` while adding edges.
+let createAdjacencyMap (edgeSet: Set<string * string>) : Map<string, string list> =
+    let edgeList : (string * string) list = Set.toList edgeSet
+
+    let adjacencyList : (string * (string list)) list =
+        edgeList
+        |> List.append (List.map (fun (x, y) -> (y, x)) edgeList)
+        |> List.groupBy fst
+        |> List.map (fun (x, y) -> (x, List.map snd y))
+
+    Map.ofList adjacencyList
+
+// Add edges for `newNodes` and return a new adjacency map.
 // The degree of each new node is determined by
 // 1. Check if it's a tier-1 node by `tier1KeySet`.
 // 2. Use peerCountTier1 or peerCountNonTier1 to decide.
@@ -142,7 +153,7 @@ let addEdges
                     printfn "Added an edge"
 
         if degreeRemaining > 0 then
-            LogError "After %d attempts, we could not find an edge for %s" maxRetryCount u
+            failwith (sprintf "Unable to find an edge for %s after %d attempts" u maxRetryCount)
 
     let ls : (string * string) list = Set.toList edgeSet
     let ls : (string * string) list = ls |> List.append (List.map (fun (x, y) -> (y, x)) ls)
