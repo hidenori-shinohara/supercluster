@@ -59,10 +59,17 @@ and qsetOfNodeInnerQset
     qsetOfNodeQset pubKeysToValidators q
 
 // For testing purposes, I made these numbers much smaller
-let peerCountTier1 (random: System.Random) : int = random.Next(1, 10)
-let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 10)
-// let peerCountTier1 (random: System.Random) : int = random.Next(25, 81)
-// let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 71)
+// TODO: For testing purposes, I made the number very small.
+let peerCountTier1 (random: System.Random) : int = 2 // random.Next(25, 81)
+
+let peerCountNonTier1 (random: System.Random) : int = 2 // if random.Next(2) = 0 then 8 else random.Next(1, 71)
+
+// let getEdgesFromNode (node: PubnetNode.Root) : (string * string) array =
+//     node.Peers
+//     |> Array.filter (fun peer -> peer < node.PublicKey) // This filter ensures that we add each edge exactly once.
+//     |> Array.map (fun peer -> (peer, node.PublicKey))
+// let edgeArray : (string * string) array = original |> Array.map getEdgesFromNode |> Array.reduce Array.append
+let extractEdges (graph: PubnetNode.Root array) : (string * string) array = failwith "hell world"
 
 // Add `newNodes` to `original` while adding edges.
 // The degree of each new node is determined by
@@ -76,17 +83,11 @@ let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then
 // then we pick a random edge (a, b), remove (a, b) and add (a, u) and (u, b).
 // We continue this process until u has a desired degree.
 let addEdges
-    (original: PubnetNode.Root array)
-    (newNodes: PubnetNode.Root array)
+    (edgeArray: (string * string) array)
+    (newNodes: string array)
     (tier1KeySet: Set<string>)
     (random: System.Random)
     : Map<string, string list> =
-    let getEdgesFromNode (node: PubnetNode.Root) : (string * string) array =
-        node.Peers
-        |> Array.filter (fun peer -> peer < node.PublicKey) // This filter ensures that we add each edge exactly once.
-        |> Array.map (fun peer -> (peer, node.PublicKey))
-
-    let edgeArray : (string * string) array = original |> Array.map getEdgesFromNode |> Array.reduce Array.append
 
     // This is a silly "arraylist"
     let mutable edgeList : Map<int, string * string> =
@@ -97,9 +98,7 @@ let addEdges
 
     printfn "edgeSet has size %d" (Set.count edgeSet)
 
-    for newNode in newNodes do
-        let u = newNode.PublicKey
-
+    for u in newNodes do
         let mutable degreeRemaining =
             if Set.contains u tier1KeySet then
                 peerCountTier1 random
@@ -358,7 +357,12 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
           keys = keys
           live = true }
 
-    let edgeMap = addEdges allPubnetNodes newNodes tier1KeySet random
+    let edgeMap =
+        addEdges
+            (extractEdges allPubnetNodes)
+            (Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) newNodes)
+            tier1KeySet
+            random
 
     let preferredPeersMapForAllNodes : Map<byte [], byte [] list> =
         let getSimPubKey (k: string) = (getSimKey k).PublicKey
