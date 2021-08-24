@@ -128,7 +128,10 @@ let addEdges
             //    than any node in the original graph.
             // 2. The following algorithm will likely fail to find enough edges.
             // 3. If we adjust `degreeRemaining`, then the degree distribution will be impacted.
-            failwith "The original graph is too small"
+            // TODO: updated the followign for testing.
+            // fix that.
+            degreeRemaining <- 1
+        // failwith "The original graph is too small"
 
         let maxRetryCount = 100
 
