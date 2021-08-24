@@ -144,14 +144,11 @@ let addEdges
         if degreeRemaining > 0 then
             LogError "After %d attempts, we could not find an edge for %s" maxRetryCount u
 
-    // TODO: This part is complicated
-// But I think I can do it.
-    let mutable peerMap : Map<string, string list> = Map.empty
-    //    Set.iter (fun edge ->
-//        let a = fst edge
-//        let b = snd edge
-//        peerMap <- peerMap.Add(a, b)
-//        peerMap <- peerMap.Add(b, a)) edgeSet |> ignore
+    let ls : (string * string) list = Set.toList edgeSet
+    let ls : (string * string) list = ls |> List.append (List.map (fun (x, y) -> (y, x)) ls)
+    let groupedList : (string * ((string * string) list)) list = List.groupBy fst ls
+    let groupedList2 : (string * (string list)) list = List.map (fun (x, y) -> (x, List.map snd y)) groupedList
+    let peerMap : Map<string, string list> = groupedList2 |> Map.ofList
     peerMap
 
 
