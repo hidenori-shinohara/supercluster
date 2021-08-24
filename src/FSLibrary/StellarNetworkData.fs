@@ -104,39 +104,41 @@ let addEdges
         // failwith "The original graph is too small"
 
         let maxRetryCount = 100
+        let mutable errorCount = 0
 
-        for i in 1 .. maxRetryCount do
-            if degreeRemaining > 0 then
-                let index = random.Next(0, Set.count edgeSet)
-                let (a, b) = edgeList.[index]
-                let maybeNewEdge1 = if a < u then (a, u) else (u, a)
-                let maybeNewEdge2 = if b < u then (b, u) else (u, b)
-                if a = u then printfn "a = u"
-                if b = u then printfn "b = u"
-                if Set.contains maybeNewEdge1 edgeSet then printfn "edge 1"
-                if Set.contains maybeNewEdge2 edgeSet then printfn "edge 2"
+        while degreeRemaining > 0 do
+            let index = random.Next(0, Set.count edgeSet)
+            let (a, b) = edgeList.[index]
+            let maybeNewEdge1 = if a < u then (a, u) else (u, a)
+            let maybeNewEdge2 = if b < u then (b, u) else (u, b)
+            if a = u then printfn "a = u"
+            if b = u then printfn "b = u"
+            if Set.contains maybeNewEdge1 edgeSet then printfn "edge 1"
+            if Set.contains maybeNewEdge2 edgeSet then printfn "edge 2"
 
-                if (a <> u)
-                   && (b <> u)
-                   && (not (Set.contains maybeNewEdge1 edgeSet))
-                   && (not (Set.contains maybeNewEdge2 edgeSet)) then
-                    degreeRemaining <- degreeRemaining - 2
-                    // A bit tricky, but...
-                    // 1. Replace the current edge with maybeNewEdge1
-                    // 2. Append maybeNewEdge2
-                    //
-                    // This ensures that edgeList is exactly the list of all edges,
-                    // nothing more, nothing less.
-                    edgeList <- edgeList.Add(index, maybeNewEdge1)
-                    edgeList <- edgeList.Add(Set.count edgeSet, maybeNewEdge2)
-                    edgeSet <- edgeSet.Add(maybeNewEdge1)
-                    edgeSet <- edgeSet.Add(maybeNewEdge2)
-                    edgeSet <- edgeSet.Remove((a, b))
-                    printfn "Added an edge"
+            if (a <> u)
+               && (b <> u)
+               && (not (Set.contains maybeNewEdge1 edgeSet))
+               && (not (Set.contains maybeNewEdge2 edgeSet)) then
+                degreeRemaining <- degreeRemaining - 2
+                // A bit tricky, but...
+                // 1. Replace the current edge with maybeNewEdge1
+                // 2. Append maybeNewEdge2
+                //
+                // This ensures that edgeList is exactly the list of all edges,
+                // nothing more, nothing less.
+                edgeList <- edgeList.Add(index, maybeNewEdge1)
+                edgeList <- edgeList.Add(Set.count edgeSet, maybeNewEdge2)
+                edgeSet <- edgeSet.Add(maybeNewEdge1)
+                edgeSet <- edgeSet.Add(maybeNewEdge2)
+                edgeSet <- edgeSet.Remove((a, b))
+                printfn "Added an edge"
+                errorCount <- 0
+            else
+                errorCount <- errorCount + 1
 
-        if degreeRemaining > 0 then
-            failwith (sprintf "Unable to find an edge for %s after %d attempts" u maxRetryCount)
-
+                if errorCount >= maxRetryCount then
+                    failwith (sprintf "Unable to find an edge for %s after %d attempts" u maxRetryCount)
 
     printfn "%A" edgeList
     createAdjacencyMap edgeSet
@@ -153,11 +155,12 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
     let allPubnetNodes : PubnetNode.Root array = PubnetNode.Load(context.pubnetData.Value)
 
     // TODO: take these counts from the context
-    let tier1Cnt = 3
+    let tier1Cnt = 9
     let nonTier1Cnt = 1
     // A Random object with a fixed seed.
     let random = System.Random 0
 
+    // TODO: Why a random string?
     // It is necessary to take a unit.
     // Otherwise, it will call the random function only once.
     let createRandomString _ : string = new System.String([| for i in 0 .. 10 -> "0123456789".[random.Next(10)] |])
