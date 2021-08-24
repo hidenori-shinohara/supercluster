@@ -28,26 +28,6 @@ let TestnetLatestHistoryArchiveState =
 type PubnetNode = JsonProvider<"json-type-samples/sample-network-data.json", SampleIsList=false, ResolutionFolder=cwd>
 type Tier1PublicKey = JsonProvider<"json-type-samples/sample-keys.json", SampleIsList=false, ResolutionFolder=cwd>
 
-
-// Recursively convert json qsets to typed QuorumSet type
-let rec qsetOfNodeQset
-    (pubKeysToValidators: (string array) -> Map<PeerShortName, KeyPair>)
-    (q: PubnetNode.SbQuorumSet)
-    : QuorumSet =
-    let sz = q.Validators.Length + q.InnerQuorumSets.Length
-    let pct = percentOfThreshold sz (int (q.Threshold))
-
-    { thresholdPercent = Some pct
-      validators = pubKeysToValidators q.Validators
-      innerQuorumSets = Array.map (qsetOfNodeInnerQset pubKeysToValidators) q.InnerQuorumSets }
-
-and qsetOfNodeInnerQset
-    (pubKeysToValidators: (string array) -> Map<PeerShortName, KeyPair>)
-    (iq: PubnetNode.InnerQuorumSet)
-    : QuorumSet =
-    let q = new PubnetNode.SbQuorumSet(iq.JsonValue)
-    qsetOfNodeQset pubKeysToValidators q
-
 let peerCountTier1 (random: System.Random) : int = random.Next(25, 81)
 
 let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 71)
@@ -312,14 +292,25 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         |> Array.map (fun k -> (peerShortNameForKey k, getSimKey k))
         |> Map.ofArray
 
-    let defaultQuorum : QuorumSet = failwith "defaultQuorum isn't defined yet"
-    //        { thresholdPercent = None
-//          validators =
-//              allPubnetNodes
-//              |> Array.filter (fun (n: PubnetNode.Root) -> n.SbHomeDomain = Some "www.stellar.org")
-//              |> Array.map (fun (n: PubnetNode.Root) -> n.PublicKey)
-//              |> pubKeysToValidators
-//          innerQuorumSets = Array.empty }
+    let defaultQuorum : QuorumSet =
+        let mynodes : (string * (string array)) array =
+            allPubnetNodes
+            |> Array.filter (fun (n: PubnetNode.Root) -> Set.contains n.PublicKey tier1KeySet)
+            |> Array.filter (fun (n: PubnetNode.Root) -> n.SbHomeDomain.IsSome)
+            |> Array.groupBy (fun (n: PubnetNode.Root) -> n.SbHomeDomain.Value)
+            |> Array.map
+                (fun (domain: string, nodes: PubnetNode.Root []) ->
+                    (domain, Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) nodes))
+
+        let nOrgs = Array.length mynodes
+
+        { thresholdPercent = None
+          validators =
+              allPubnetNodes
+              |> Array.filter (fun (n: PubnetNode.Root) -> n.SbHomeDomain = Some "www.stellar.org")
+              |> Array.map (fun (n: PubnetNode.Root) -> n.PublicKey)
+              |> pubKeysToValidators
+          innerQuorumSets = Array.empty }
 
     let pubnetOpts =
         { CoreSetOptions.GetDefault context.image with
