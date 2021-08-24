@@ -60,9 +60,9 @@ and qsetOfNodeInnerQset
 
 // For testing purposes, I made these numbers much smaller
 // TODO: For testing purposes, I made the number very small.
-let peerCountTier1 (random: System.Random) : int = 2 // random.Next(25, 81)
+let peerCountTier1 (random: System.Random) : int = 1 // random.Next(25, 81)
 
-let peerCountNonTier1 (random: System.Random) : int = 2 // if random.Next(2) = 0 then 8 else random.Next(1, 71)
+let peerCountNonTier1 (random: System.Random) : int = 1 // if random.Next(2) = 0 then 8 else random.Next(1, 71)
 
 let extractEdges (graph: PubnetNode.Root array) : (string * string) array =
     let getEdgesFromNode (node: PubnetNode.Root) : (string * string) array =
@@ -110,6 +110,8 @@ let addEdges
 
     printfn "edgeSet has size %d" (Set.count edgeSet)
 
+    printfn "%A" newNodes
+
     for u in newNodes do
         let mutable degreeRemaining =
             if Set.contains u tier1KeySet then
@@ -122,11 +124,7 @@ let addEdges
         for i in 1 .. maxRetryCount do
             if degreeRemaining > 0 then
                 let index = random.Next(0, Set.count edgeSet)
-                printfn "%d was chosen as index" index
-                let edge : string * string = edgeList.[index]
-                let a = fst edge
-                let b = snd edge
-                printfn "a = %s, b = %s, u = %s" (a.[0..5]) (b.[0..5]) (u.[0..5])
+                let (a, b) = edgeList.[index]
                 let maybeNewEdge1 = if a < u then (a, u) else (u, a)
                 let maybeNewEdge2 = if b < u then (b, u) else (u, b)
                 if a = u then printfn "a = u"
@@ -149,19 +147,15 @@ let addEdges
                     edgeList <- edgeList.Add(Set.count edgeSet, maybeNewEdge2)
                     edgeSet <- edgeSet.Add(maybeNewEdge1)
                     edgeSet <- edgeSet.Add(maybeNewEdge2)
-                    edgeSet <- edgeSet.Remove(edge)
+                    edgeSet <- edgeSet.Remove((a, b))
                     printfn "Added an edge"
 
         if degreeRemaining > 0 then
             failwith (sprintf "Unable to find an edge for %s after %d attempts" u maxRetryCount)
 
-    let ls : (string * string) list = Set.toList edgeSet
-    let ls : (string * string) list = ls |> List.append (List.map (fun (x, y) -> (y, x)) ls)
-    let groupedList : (string * ((string * string) list)) list = List.groupBy fst ls
-    let groupedList2 : (string * (string list)) list = List.map (fun (x, y) -> (x, List.map snd y)) groupedList
-    let peerMap : Map<string, string list> = groupedList2 |> Map.ofList
-    peerMap
 
+    printfn "%A" edgeList
+    createAdjacencyMap edgeSet
 
 
 let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet list =
@@ -175,20 +169,25 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
     let allPubnetNodes : PubnetNode.Root array = PubnetNode.Load(context.pubnetData.Value)
 
     // TODO: take these counts from the context
-    let tier1Cnt = 5
-    let nonTier1Cnt = 10
+    let tier1Cnt = 1
+    let nonTier1Cnt = 1
     // A Random object with a fixed seed.
     let random = System.Random 0
-    let createRandomPubKey : string = new System.String([| for i in 0 .. 10 -> "0123456789".[random.Next(10)] |])
+
+    // It is necessary that the following create functions take a unit.
+    // Otherwise, it will call the random function only once.
+    let createRandomPubKey _ : string = new System.String([| for i in 0 .. 10 -> "0123456789".[random.Next(10)] |])
     // TODO: create the public key randomly
-    let createEmptyNode : PubnetNode.Root =
-        PubnetNode.Parse(sprintf """ [{ "publicKey": "G%s" }] """ createRandomPubKey).[0]
+    let createEmptyNode _ : PubnetNode.Root =
+        PubnetNode.Parse(sprintf """ [{ "publicKey": "G%s" }] """ (createRandomPubKey ())).[0]
 
     printfn "hello world, hopefully this gets printed before the error message"
 
-    let newTier1Nodes = [ for i in 1 .. tier1Cnt -> createEmptyNode ] |> Array.ofList
-    //            |> List.map (fun n -> { n with PubnetNode.numTotalInboundPeers = if Set.contains u tier1KeySet then peerCountTier1 random else peerCountNonTier1 random })
-    let newNonTier1Nodes = [ for i in 1 .. nonTier1Cnt -> createEmptyNode ] |> Array.ofList
+    let newTier1Nodes = [ for i in 1 .. tier1Cnt -> createEmptyNode () ] |> Array.ofList
+    let newNonTier1Nodes = [ for i in 1 .. nonTier1Cnt -> createEmptyNode () ] |> Array.ofList
+
+    printfn "newTier1Nodes %A" newTier1Nodes
+    printfn "newNonTier1Nodes %A" newNonTier1Nodes
 
     let tier1KeySet : Set<string> =
         let newTier1Keys = Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) newTier1Nodes in
