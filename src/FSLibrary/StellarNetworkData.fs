@@ -29,16 +29,6 @@ type PubnetNode = JsonProvider<"json-type-samples/sample-network-data.json", Sam
 type Tier1PublicKey = JsonProvider<"json-type-samples/sample-keys.json", SampleIsList=false, ResolutionFolder=cwd>
 
 
-// Recursively check if the given quorum set only contains tier 1.
-let rec checkOnlyContainsTier1 (tier1KeySet: Set<string>) (q: PubnetNode.SbQuorumSet) : bool =
-    Array.forall (fun k -> Set.contains k tier1KeySet) q.Validators
-    && Array.forall (checkOnlyContainsTier1Inner tier1KeySet) q.InnerQuorumSets
-
-and checkOnlyContainsTier1Inner (tier1KeySet: Set<string>) (iq: PubnetNode.InnerQuorumSet) : bool =
-    let q = new PubnetNode.SbQuorumSet(iq.JsonValue)
-    checkOnlyContainsTier1 tier1KeySet q
-
-
 // Recursively convert json qsets to typed QuorumSet type
 let rec qsetOfNodeQset
     (pubKeysToValidators: (string array) -> Map<PeerShortName, KeyPair>)
@@ -322,26 +312,14 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         |> Array.map (fun k -> (peerShortNameForKey k, getSimKey k))
         |> Map.ofArray
 
-    let defaultQuorum : QuorumSet =
-        { thresholdPercent = None
-          validators =
-              allPubnetNodes
-              |> Array.filter (fun (n: PubnetNode.Root) -> n.SbHomeDomain = Some "www.stellar.org")
-              |> Array.map (fun (n: PubnetNode.Root) -> n.PublicKey)
-              |> pubKeysToValidators
-          innerQuorumSets = Array.empty }
-
-    assert (not (Map.isEmpty defaultQuorum.validators))
-
-    let qsetOfNodeQsetOrDefault (qOption: PubnetNode.SbQuorumSet option) : QuorumSet =
-        match qOption with
-        | Some q ->
-            if (q.Validators.Length <> 0 || q.InnerQuorumSets.Length <> 0)
-               && checkOnlyContainsTier1 tier1KeySet q then
-                qsetOfNodeQset pubKeysToValidators q
-            else
-                defaultQuorum
-        | None -> defaultQuorum
+    let defaultQuorum : QuorumSet = failwith "defaultQuorum isn't defined yet"
+    //        { thresholdPercent = None
+//          validators =
+//              allPubnetNodes
+//              |> Array.filter (fun (n: PubnetNode.Root) -> n.SbHomeDomain = Some "www.stellar.org")
+//              |> Array.map (fun (n: PubnetNode.Root) -> n.PublicKey)
+//              |> pubKeysToValidators
+//          innerQuorumSets = Array.empty }
 
     let pubnetOpts =
         { CoreSetOptions.GetDefault context.image with
@@ -422,13 +400,12 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         Array.mapi
             (fun (_: int) (n: PubnetNode.Root) ->
                 let hdn = homeDomainNameForKey n.PublicKey
-                let qset = qsetOfNodeQsetOrDefault n.SbQuorumSet
                 let keys = [| getSimKey n.PublicKey |]
 
                 let coreSetOpts =
                     { pubnetOpts with
                           nodeCount = 1
-                          quorumSet = ExplicitQuorum qset
+                          quorumSet = ExplicitQuorum defaultQuorum
                           tier1 = Some(Set.contains n.PublicKey tier1KeySet)
                           nodeLocs = Some [ getGeoLocOrDefault n ]
                           preferredPeersMap = Some(keysToPreferredPeersMap keys) }
@@ -442,14 +419,13 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         Array.map
             (fun (hdn: HomeDomainName, nodes: PubnetNode.Root array) ->
                 assert (nodes.Length <> 0)
-                let qset = qsetOfNodeQsetOrDefault nodes.[0].SbQuorumSet
                 let nodeList = List.ofArray nodes
                 let keys = Array.map (fun (n: PubnetNode.Root) -> getSimKey n.PublicKey) nodes
 
                 let coreSetOpts =
                     { pubnetOpts with
                           nodeCount = Array.length nodes
-                          quorumSet = ExplicitQuorum qset
+                          quorumSet = ExplicitQuorum defaultQuorum
                           tier1 = Some(Set.contains nodes.[0].PublicKey tier1KeySet)
                           nodeLocs = Some(List.map getGeoLocOrDefault nodeList)
                           preferredPeersMap = Some(keysToPreferredPeersMap keys) }
