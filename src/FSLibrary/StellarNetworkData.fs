@@ -80,7 +80,7 @@ let addEdges
     (newNodes: PubnetNode.Root array)
     (tier1KeySet: Set<string>)
     (random: System.Random)
-    : PubnetNode.Root array =
+    : Map<string, string list> =
     let getEdgesFromNode (node: PubnetNode.Root) : (string * string) array =
         node.Peers
         |> Array.filter (fun peer -> peer < node.PublicKey) // This filter ensures that we add each edge exactly once.
@@ -144,7 +144,17 @@ let addEdges
         if degreeRemaining > 0 then
             LogError "After %d attempts, we could not find an edge for %s" maxRetryCount u
 
-    failwith "undefined 135"
+    // TODO: This part is complicated
+// But I think I can do it.
+    let mutable peerMap : Map<string, string list> = Map.empty
+    //    Set.iter (fun edge ->
+//        let a = fst edge
+//        let b = snd edge
+//        peerMap <- peerMap.Add(a, b)
+//        peerMap <- peerMap.Add(b, a)) edgeSet |> ignore
+    peerMap
+
+
 
 let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet list =
 
@@ -186,7 +196,7 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         Array.append newTier1Nodes newNonTier1Nodes
         |> Array.sortBy (fun _ -> random.Next())
 
-    let allPubnetNodes = addEdges allPubnetNodes newNodes tier1KeySet random
+    let allPubnetNodes = allPubnetNodes |> Array.append newTier1Nodes |> Array.append newNonTier1Nodes
 
     // For each pubkey in the pubnet, we map it to an actual KeyPair (with a private
     // key) to use in the simulation. It's important to keep these straight! The keys
@@ -351,6 +361,8 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
           keys = keys
           live = true }
 
+    let edgeMap = addEdges allPubnetNodes newNodes tier1KeySet random
+
     let preferredPeersMapForAllNodes : Map<byte [], byte [] list> =
         let getSimPubKey (k: string) = (getSimKey k).PublicKey
 
@@ -360,12 +372,11 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
                 let key = getSimPubKey n.PublicKey
 
                 let peers =
-                    n.Peers
+                    Map.find n.PublicKey edgeMap
                     |>
                     // This filtering is necessary since we intentionally remove some nodes
                     // using networkSizeLimit.
-                    Array.filter (fun (k: string) -> Set.contains k allPubnetNodeKeys)
-                    |> List.ofArray
+                    List.filter (fun (k: string) -> Set.contains k allPubnetNodeKeys)
                     |> List.map getSimPubKey
 
                 (key, peers))
