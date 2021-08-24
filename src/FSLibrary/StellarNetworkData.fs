@@ -64,12 +64,13 @@ let peerCountTier1 (random: System.Random) : int = 2 // random.Next(25, 81)
 
 let peerCountNonTier1 (random: System.Random) : int = 2 // if random.Next(2) = 0 then 8 else random.Next(1, 71)
 
-// let getEdgesFromNode (node: PubnetNode.Root) : (string * string) array =
-//     node.Peers
-//     |> Array.filter (fun peer -> peer < node.PublicKey) // This filter ensures that we add each edge exactly once.
-//     |> Array.map (fun peer -> (peer, node.PublicKey))
-// let edgeArray : (string * string) array = original |> Array.map getEdgesFromNode |> Array.reduce Array.append
-let extractEdges (graph: PubnetNode.Root array) : (string * string) array = failwith "hell world"
+let extractEdges (graph: PubnetNode.Root array) : (string * string) array =
+    let getEdgesFromNode (node: PubnetNode.Root) : (string * string) array =
+        node.Peers
+        |> Array.filter (fun peer -> peer < node.PublicKey) // This filter ensures that we add each edge exactly once.
+        |> Array.map (fun peer -> (peer, node.PublicKey))
+
+    graph |> Array.map getEdgesFromNode |> Array.reduce Array.append
 
 // Add `newNodes` to `original` while adding edges.
 // The degree of each new node is determined by
