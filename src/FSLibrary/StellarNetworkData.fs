@@ -293,24 +293,33 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         |> Map.ofArray
 
     let defaultQuorum : QuorumSet =
-        let mynodes : (string * (string array)) array =
+        let mynodes : (string array) array =
             allPubnetNodes
             |> Array.filter (fun (n: PubnetNode.Root) -> Set.contains n.PublicKey tier1KeySet)
             |> Array.filter (fun (n: PubnetNode.Root) -> n.SbHomeDomain.IsSome)
             |> Array.groupBy (fun (n: PubnetNode.Root) -> n.SbHomeDomain.Value)
             |> Array.map
                 (fun (domain: string, nodes: PubnetNode.Root []) ->
-                    (domain, Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) nodes))
+                    Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) nodes)
 
         let nOrgs = Array.length mynodes
+        // The largest number of Byzantine failures we can sustain.
+        // In other words, we want the largest f such that 3f + 1 <= nOrgs.
+        let f : int = (nOrgs - 1) / 3
 
-        { thresholdPercent = None
-          validators =
-              allPubnetNodes
-              |> Array.filter (fun (n: PubnetNode.Root) -> n.SbHomeDomain = Some "www.stellar.org")
-              |> Array.map (fun (n: PubnetNode.Root) -> n.PublicKey)
-              |> pubKeysToValidators
-          innerQuorumSets = Array.empty }
+        let orgToQSet (org: string array) : QuorumSet =
+            let sz = Array.length org
+            // The largest number of non-Byzantine failures we can sustain.
+            // In other words, we want the largest f such that 2f + 1 <= nOrgs.
+            let f = (sz - 1) / 2
+
+            { thresholdPercent = Some(percentOfThreshold sz (sz - f))
+              validators = pubKeysToValidators org
+              innerQuorumSets = Array.empty }
+
+        { thresholdPercent = Some(percentOfThreshold nOrgs (nOrgs - f))
+          validators = Map.empty
+          innerQuorumSets = Array.map orgToQSet mynodes }
 
     let pubnetOpts =
         { CoreSetOptions.GetDefault context.image with
