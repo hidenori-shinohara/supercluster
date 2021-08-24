@@ -169,22 +169,31 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
     let allPubnetNodes : PubnetNode.Root array = PubnetNode.Load(context.pubnetData.Value)
 
     // TODO: take these counts from the context
-    let tier1Cnt = 1
+    let tier1Cnt = 3
     let nonTier1Cnt = 1
     // A Random object with a fixed seed.
     let random = System.Random 0
 
-    // It is necessary that the following create functions take a unit.
+    // It is necessary to take a unit.
     // Otherwise, it will call the random function only once.
-    let createRandomPubKey _ : string = new System.String([| for i in 0 .. 10 -> "0123456789".[random.Next(10)] |])
-    // TODO: create the public key randomly
-    let createEmptyNode _ : PubnetNode.Root =
-        PubnetNode.Parse(sprintf """ [{ "publicKey": "G%s" }] """ (createRandomPubKey ())).[0]
+    let createRandomString _ : string = new System.String([| for i in 0 .. 10 -> "0123456789".[random.Next(10)] |])
 
-    printfn "hello world, hopefully this gets printed before the error message"
+    let _ = assert (tier1Cnt % 3 = 0)
 
-    let newTier1Nodes = [ for i in 1 .. tier1Cnt -> createEmptyNode () ] |> Array.ofList
-    let newNonTier1Nodes = [ for i in 1 .. nonTier1Cnt -> createEmptyNode () ] |> Array.ofList
+    let newTier1Nodes =
+        [ for i in 1 .. tier1Cnt ->
+              PubnetNode.Parse(
+                  sprintf
+                      """ [{ "publicKey": "G%s", "sb_homeDomain": "home.domain.%d" }] """
+                      (createRandomString ())
+                      ((i - 1) / 3)
+              ).[0] ]
+        |> Array.ofList
+
+    let newNonTier1Nodes =
+        [ for _ in 1 .. nonTier1Cnt ->
+              PubnetNode.Parse(sprintf """ [{ "publicKey": "G%s" }] """ (createRandomString ())).[0] ]
+        |> Array.ofList
 
     printfn "newTier1Nodes %A" newTier1Nodes
     printfn "newNonTier1Nodes %A" newNonTier1Nodes
