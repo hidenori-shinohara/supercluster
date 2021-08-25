@@ -283,7 +283,7 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         |> Map.ofArray
 
     let defaultQuorum : QuorumSet =
-        let mynodes : (string array) array =
+        let tier1NodesGroupedByHomeDomain : (string array) array =
             allPubnetNodes
             |> Array.filter (fun (n: PubnetNode.Root) -> Set.contains n.PublicKey tier1KeySet)
             |> Array.filter (fun (n: PubnetNode.Root) -> n.SbHomeDomain.IsSome)
@@ -292,24 +292,25 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
                 (fun (domain: string, nodes: PubnetNode.Root []) ->
                     Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) nodes)
 
-        let nOrgs = Array.length mynodes
-        // The largest number of Byzantine failures we can sustain.
-        // In other words, we want the largest f such that 3f + 1 <= nOrgs.
-        let f : int = (nOrgs - 1) / 3
-
         let orgToQSet (org: string array) : QuorumSet =
             let sz = Array.length org
             // The largest number of non-Byzantine failures we can sustain.
             // In other words, we want the largest f such that 2f + 1 <= nOrgs.
-            let f = (sz - 1) / 2
+            let nonByzantine = (sz - 1) / 2
 
-            { thresholdPercent = Some(percentOfThreshold sz (sz - f))
+            { thresholdPercent = Some(percentOfThreshold sz (sz - nonByzantine))
               validators = pubKeysToValidators org
               innerQuorumSets = Array.empty }
 
-        { thresholdPercent = Some(percentOfThreshold nOrgs (nOrgs - f))
+        let nOrgs = Array.length tier1NodesGroupedByHomeDomain
+
+        // The largest number of Byzantine failures we can sustain.
+        // In other words, we want the largest f such that 3f + 1 <= nOrgs.
+        let byzantine : int = (nOrgs - 1) / 3
+
+        { thresholdPercent = Some(percentOfThreshold nOrgs (nOrgs - byzantine))
           validators = Map.empty
-          innerQuorumSets = Array.map orgToQSet mynodes }
+          innerQuorumSets = Array.map orgToQSet tier1NodesGroupedByHomeDomain }
 
     let pubnetOpts =
         { CoreSetOptions.GetDefault context.image with
