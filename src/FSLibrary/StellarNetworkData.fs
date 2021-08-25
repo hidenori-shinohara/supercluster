@@ -75,11 +75,7 @@ let addEdges
 
     let edgeArray = extractEdges graph
 
-    // This is a silly "arraylist"
-    let mutable edgeList : Map<int, string * string> =
-        Array.init (Array.length edgeArray) (fun index -> (index, edgeArray.[index]))
-        |> Map.ofArray
-
+    let edgeArrayList : ResizeArray<string * string> = new ResizeArray<string * string>(edgeArray)
     let mutable edgeSet : Set<string * string> = edgeArray |> Set.ofArray
 
     printfn "edgeSet has size %d" (Set.count edgeSet)
@@ -109,7 +105,7 @@ let addEdges
 
         while degreeRemaining > 0 do
             let index = random.Next(0, Set.count edgeSet)
-            let (a, b) = edgeList.[index]
+            let (a, b) = edgeArrayList.[index]
             let maybeNewEdge1 = (min a u, max a u)
             let maybeNewEdge2 = (min b u, max b u)
 
@@ -122,8 +118,8 @@ let addEdges
                 // 2. Append maybeNewEdge2
                 //
                 // This ensures that edgeList is exactly the list of all edges.
-                edgeList <- edgeList.Add(index, maybeNewEdge1)
-                edgeList <- edgeList.Add(Set.count edgeSet, maybeNewEdge2)
+                edgeArrayList.[index] <- maybeNewEdge1
+                edgeArrayList.Add(maybeNewEdge2)
                 edgeSet <- edgeSet.Add(maybeNewEdge1)
                 edgeSet <- edgeSet.Add(maybeNewEdge2)
                 edgeSet <- edgeSet.Remove((a, b))
@@ -134,7 +130,7 @@ let addEdges
                 if errorCount >= maxRetryCount then
                     failwith (sprintf "Unable to find an edge for %s after %d attempts" u maxRetryCount)
 
-    printfn "%A" edgeList
+    printfn "%A" edgeArrayList
     createAdjacencyMap edgeSet
 
 
