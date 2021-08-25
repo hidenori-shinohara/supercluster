@@ -75,6 +75,8 @@ let ctx : MissionContext =
               }
           )
       networkSizeLimit = 100
+      tier1NodesToAdd = 0
+      nonTier1NodesToAdd = 0
       pubnetParallelCatchupStartingLedger = 0 }
 
 let netdata = __SOURCE_DIRECTORY__ + "/../../../data/public-network-data-2021-01-05.json"
