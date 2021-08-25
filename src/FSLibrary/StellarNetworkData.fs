@@ -28,6 +28,9 @@ let TestnetLatestHistoryArchiveState =
 type PubnetNode = JsonProvider<"json-type-samples/sample-network-data.json", SampleIsList=false, ResolutionFolder=cwd>
 type Tier1PublicKey = JsonProvider<"json-type-samples/sample-keys.json", SampleIsList=false, ResolutionFolder=cwd>
 
+// When scaling the network, we need to pick
+// the degree of each new node.
+// The following numbers are added here based on pubnet observations/educated guesses.
 let peerCountTier1 (random: System.Random) : int = random.Next(25, 81)
 
 let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 71)
@@ -44,6 +47,9 @@ let extractEdges (graph: PubnetNode.Root array) : (string * string) array =
 
     graph |> Array.map getEdgesFromNode |> Array.reduce Array.append
 
+// Given `edgeSet` containing edges (each edge is represented as a pair of strings),
+// creae a map whose key is a pubkey and the corresponding value is the list of
+// nodes it's connected to.
 let createAdjacencyMap (edgeSet: Set<string * string>) : Map<string, string list> =
     let edgeList : (string * string) list = Set.toList edgeSet
 
@@ -58,9 +64,9 @@ let createAdjacencyMap (edgeSet: Set<string * string>) : Map<string, string list
 // Add edges for `newNodes` and return a new adjacency map.
 // The degree of each new node is determined by
 // 1. Check if it's a tier-1 node by `tier1KeySet`.
-// 2. Use peerCountTier1 or peerCountNonTier1 to decide.
+// 2. Use `peerCountTier1` or `peerCountNonTier1` to decide.
 //
-// To preserve the degree of each existing node in `original`
+// To preserve the degree of each existing node,
 // each new node's edges come from splitting an existing edge.
 //
 // More specifically, if we're adding a new node u,
@@ -78,10 +84,6 @@ let addEdges
     let edgeArrayList : ResizeArray<string * string> = new ResizeArray<string * string>(edgeArray)
     let mutable edgeSet : Set<string * string> = edgeArray |> Set.ofArray
 
-    printfn "edgeSet has size %d" (Set.count edgeSet)
-
-    printfn "%A" newNodes
-
     for u in newNodes do
         let mutable degreeRemaining =
             if Set.contains u tier1KeySet then
@@ -89,15 +91,14 @@ let addEdges
             else
                 peerCountNonTier1 random
 
-
         if degreeRemaining >= (Array.length graph) then
             // The chosen degree is larger than the given graph's cardinality.
             // This error is likely caused by passing the incorrect pubnet graph file.
             // We choose to throw here because
-            // 1. This new node will have a degree significantly larger
+            // 1. This new node would have a degree significantly larger
             //    than any node in the original graph.
-            // 2. The following algorithm will likely fail to find enough edges.
-            // 3. If we adjust `degreeRemaining`, then the degree distribution will be impacted.
+            // 2. The following algorithm would likely fail to find enough edges.
+            // 3. If we adjust `degreeRemaining`, then the degree distribution would be impacted.
             failwith "The original graph is too small"
 
         let maxRetryCount = 100
@@ -117,7 +118,7 @@ let addEdges
                 // 1. Replace the current edge with maybeNewEdge1
                 // 2. Append maybeNewEdge2
                 //
-                // This ensures that edgeList is exactly the list of all edges.
+                // This ensures that edgeArrayList is exactly the list of all edges.
                 edgeArrayList.[index] <- maybeNewEdge1
                 edgeArrayList.Add(maybeNewEdge2)
                 edgeSet <- edgeSet.Add(maybeNewEdge1)
@@ -128,9 +129,12 @@ let addEdges
                 errorCount <- errorCount + 1
 
                 if errorCount >= maxRetryCount then
+                    // We have failed to find an edge for this node
+                    // `errorCount` times in a row.
+                    // This implies that there may be no edge that `u` can be connected to.
+                    // Therefore, we choose to throw here.
                     failwith (sprintf "Unable to find an edge for %s after %d attempts" u maxRetryCount)
 
-    printfn "%A" edgeArrayList
     createAdjacencyMap edgeSet
 
 
@@ -165,9 +169,6 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
               PubnetNode.Parse(sprintf """ [{ "publicKey": "NON-TIER1-NODE-%d" }] """ i).[0] ]
         |> Array.ofList
 
-    printfn "newTier1Nodes %A" newTier1Nodes
-    printfn "newNonTier1Nodes %A" newNonTier1Nodes
-
     let tier1KeySet : Set<string> =
         let newTier1Keys = Array.map (fun (n: PubnetNode.Root) -> n.PublicKey) newTier1Nodes in
 
@@ -183,7 +184,7 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
         Array.append newTier1Nodes newNonTier1Nodes
         |> Array.sortBy (fun _ -> random.Next())
 
-    let allPubnetNodes = allPubnetNodes |> Array.append newTier1Nodes |> Array.append newNonTier1Nodes
+    let allPubnetNodes = allPubnetNodes |> Array.append newNodes
 
     // For each pubkey in the pubnet, we map it to an actual KeyPair (with a private
     // key) to use in the simulation. It's important to keep these straight! The keys
@@ -245,7 +246,6 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
                 HomeDomainName lowercase)
             orgNodes
 
-
     // Then build a map from accountID to HomeDomainName and index-within-domain
     // for each org node.
     let orgNodeHomeDomains : Map<string, (HomeDomainName * int)> =
@@ -285,8 +285,8 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
     let defaultQuorum : QuorumSet =
         let tier1NodesGroupedByHomeDomain : (string array) array =
             allPubnetNodes
-            |> Array.filter (fun (n: PubnetNode.Root) -> Set.contains n.PublicKey tier1KeySet)
-            |> Array.filter (fun (n: PubnetNode.Root) -> n.SbHomeDomain.IsSome)
+            |> Array.filter
+                (fun (n: PubnetNode.Root) -> (Set.contains n.PublicKey tier1KeySet) && n.SbHomeDomain.IsSome)
             |> Array.groupBy (fun (n: PubnetNode.Root) -> n.SbHomeDomain.Value)
             |> Array.map
                 (fun (domain: string, nodes: PubnetNode.Root []) ->
