@@ -32,6 +32,10 @@ let peerCountTier1 (random: System.Random) : int = random.Next(25, 81)
 
 let peerCountNonTier1 (random: System.Random) : int = if random.Next(2) = 0 then 8 else random.Next(1, 71)
 
+// For simplicity, we will make each new tier-1 organization contain exactly 3 nodes
+// while scaling the pubnet.
+let tier1OrgSize = 3
+
 let extractEdges (graph: PubnetNode.Root array) : (string * string) array =
     let getEdgesFromNode (node: PubnetNode.Root) : (string * string) array =
         node.Peers
@@ -126,6 +130,7 @@ let addEdges
                 errorCount <- 0
             else
                 errorCount <- errorCount + 1
+
                 if errorCount >= maxRetryCount then
                     failwith (sprintf "Unable to find an edge for %s after %d attempts" u maxRetryCount)
 
@@ -143,26 +148,24 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
 
     let allPubnetNodes : PubnetNode.Root array = PubnetNode.Load(context.pubnetData.Value)
 
-    // TODO: take these counts from the context
-    let tier1Cnt = 9
-    let nonTier1Cnt = 1
     // A Random object with a fixed seed.
     let random = System.Random 0
 
-    let _ = assert (tier1Cnt % 3 = 0)
+    if context.tier1NodesToAdd % tier1OrgSize <> 0 then
+        failwith (sprintf "The number of new tier-1 nodes must be a multiple of %d" tier1OrgSize)
 
     let newTier1Nodes =
-        [ for i in 1 .. tier1Cnt ->
+        [ for i in 1 .. context.tier1NodesToAdd ->
               PubnetNode.Parse(
                   sprintf
                       """ [{ "publicKey": "TIER1-NODE-%d", "sb_homeDomain": "home.domain.%d" }] """
                       i
-                      ((i - 1) / 3)
+                      ((i - 1) / tier1OrgSize)
               ).[0] ]
         |> Array.ofList
 
     let newNonTier1Nodes =
-        [ for i in 1 .. nonTier1Cnt ->
+        [ for i in 1 .. context.nonTier1NodesToAdd ->
               PubnetNode.Parse(sprintf """ [{ "publicKey": "NON-TIER1-NODE-%d" }] """ i).[0] ]
         |> Array.ofList
 

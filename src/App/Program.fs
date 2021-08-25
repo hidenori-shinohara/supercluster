@@ -70,6 +70,8 @@ type MissionOptions
         simulateApplyDuration: seq<string>,
         simulateApplyWeight: seq<string>,
         networkSizeLimit: int,
+        tier1NodesToAdd: int,
+        nonTier1NodesToAdd: int,
         pubnetParallelCatchupStartingLedger: int
     ) =
 
@@ -232,6 +234,16 @@ type MissionOptions
              Required = false)>]
     member self.SimulateApplyWeight = simulateApplyWeight
 
+    [<Option("tier-1-nodes-to-add",
+             HelpText = "The number of tier-1 nodes to add while scaling the network in SimulatePubnet",
+             Required = false)>]
+    member self.Tier1NodesToAdd = tier1NodesToAdd
+
+    [<Option("non-tier-1-nodes-to-add",
+             HelpText = "The number of non-tier-1 nodes to add while scaling the network in SimulatePubnet",
+             Required = false)>]
+    member self.NonTier1NodesToAdd = nonTier1NodesToAdd
+
     [<Option("network-size-limit",
              HelpText = "The number of nodes to run in SimulatePubnet",
              Required = false,
@@ -314,6 +326,8 @@ let main argv =
                   installNetworkDelay = None
                   simulateApplyDuration = None
                   simulateApplyWeight = None
+                  tier1NodesToAdd = 0
+                  nonTier1NodesToAdd = 0
                   networkSizeLimit = 0
                   pubnetParallelCatchupStartingLedger = 0 }
 
@@ -401,6 +415,8 @@ let main argv =
                                        None
                                    else
                                        Some((Seq.map int) mission.SimulateApplyWeight)
+                               tier1NodesToAdd = mission.Tier1NodesToAdd
+                               nonTier1NodesToAdd = mission.NonTier1NodesToAdd
                                networkSizeLimit = mission.NetworkSizeLimit
                                pubnetParallelCatchupStartingLedger = mission.PubnetParallelCatchupStartingLedger }
 
