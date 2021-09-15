@@ -350,7 +350,7 @@ type NetworkCfg with
         if self.missionContext.unevenSched then [||] else evenTopologyConstraints
 
     member self.Tolerations() : V1Toleration array =
-        Array.ofList (List.map (fun s -> V1Toleration(key = s)) self.missionContext.tolerateNodeTaints)
+        Array.ofList (List.map (fun _ -> V1Toleration(key = "purpose", value = "ssc")) self.missionContext.tolerateNodeTaints)
 
     member self.HistoryConfigMap() : V1ConfigMap =
         let cfgmapname = self.HistoryCfgMapName
