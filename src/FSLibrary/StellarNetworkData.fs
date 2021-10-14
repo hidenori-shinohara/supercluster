@@ -31,7 +31,7 @@ let maxPeerCountTier1 = 81
 
 let peerCountTier1 (random: System.Random) : int = random.Next(minPeerCountTier1, maxPeerCountTier1)
 
-let minPeerCountNonTier1 = 1
+let minPeerCountNonTier1 = 4
 
 let maxPeerCountNonTier1 = 71
 
@@ -160,7 +160,14 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) : CoreSet l
     if context.tier1Keys.IsNone then
         failwith "pubnet simulation requires --tier1-keys=<filename.json>"
 
-    let allPubnetNodes : PubnetNode.Root array = PubnetNode.Load(context.pubnetData.Value)
+    // Any nodes with <= 3 connections will be removed from the simulation.
+    // In general, a node should have more connections than that if
+    // they expect to be in sync.
+    // Note that it's possible that other nodes will have <= 3 connections after this,
+    // but that's a bit too much work.
+    let allPubnetNodes : PubnetNode.Root array =
+        PubnetNode.Load(context.pubnetData.Value)
+        |> Array.filter (fun (n: PubnetNode.Root) -> (Array.length n.Peers) >= 4)
 
     // A Random object with a fixed seed.
     let random = System.Random context.randomSeed

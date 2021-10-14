@@ -103,7 +103,7 @@ let SimulatePubnetCoreResourceRequirements : V1ResourceRequirements =
     //
     // So we allocate a 64MB RAM request and 400MB RAM limit to each, and a
     // 0.025vCPU request and 0.5vCPU limit to each.
-    makeResourceRequirements 25 64 500 400
+    makeResourceRequirements 25 64 1500 400
 
 let ParallelCatchupCoreResourceRequirements : V1ResourceRequirements =
     // When doing parallel catchup, we give each container
