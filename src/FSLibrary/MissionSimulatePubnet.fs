@@ -18,47 +18,15 @@ open StellarCoreHTTP
 
 let simulatePubnet (context: MissionContext) =
     let context =
-        { context with
+        { context.WithPubnetSimulateApply with
               coreResources = SimulatePubnetResources context.networkSizeLimit
-              // When no value is given, use the default values derived from observing the pubnet.
-              // 9/10, 88/100, 3/1000 denote 9% => 10 usec, 88% => 100 usec, 3% => 1000 usec.
-              simulateApplyDuration =
-                  Some(
-                      context.simulateApplyDuration
-                      |> Option.defaultValue (
-                          seq {
-                              10
-                              100
-                              1000
-                          }
-                      )
-                  )
-              simulateApplyWeight =
-                  Some(
-                      context.simulateApplyWeight
-                      |> Option.defaultValue (
-                          seq {
-                              9
-                              88
-                              3
-                          }
-                      )
-                  )
-              // As the goal of `SimulatePubnet` is to simulate a pubnet,
-              // network delays are, in general, indispensable.
-              // Therefore, unless explicitly told otherwise, we will use
-              // network delays.
-              installNetworkDelay = Some(context.installNetworkDelay |> Option.defaultValue true)
+              // Turn off network delay only if told explicitly.
+              installNetworkDelay =
+                  if context.installNetworkDelay = Some false then
+                      Some false
+                  else
+                      context.installNetworkDelay }
 
-              // This spike configuration was derived from some pubnet data.
-              // Most ledgers are expected to have roughly 60 * 5 = 300 ops,
-              // and 1 in 13 ledgers are expected to have roughly 60 * 5 + 700 = 1000 txs.
-              // We expect that a transaction contains 1.65 ops on average.
-              // * txRate = (60 op / s) / (1.65 op / tx) = 36 tx / s.
-              // * spikeSize = 700 op / (1.65 op / tx) = 424 tx.
-              txRate = 36
-              spikeSize = 424
-              spikeInterval = 65 }
 
     let fullCoreSet = FullPubnetCoreSets context true
 

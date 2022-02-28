@@ -16,7 +16,9 @@ open StellarSupercluster
 open StellarCoreHTTP
 
 let simulatePubnetTier1Perf (context: MissionContext) =
-    let context = { context with coreResources = SimulatePubnetTier1PerfResources }
+    let context =
+        { context.WithPubnetSimulateApply with
+              coreResources = SimulatePubnetTier1PerfResources }
 
     let tier1 = StableApproximateTier1CoreSets context.image
     let sdf = List.find (fun (cs: CoreSet) -> cs.name.StringName = "sdf") tier1
