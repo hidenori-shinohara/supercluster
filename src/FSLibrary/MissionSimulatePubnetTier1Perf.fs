@@ -18,7 +18,13 @@ open StellarCoreHTTP
 let simulatePubnetTier1Perf (context: MissionContext) =
     let context =
         { context.WithPubnetSimulateApply with
-              coreResources = SimulatePubnetTier1PerfResources }
+              coreResources = SimulatePubnetTier1PerfResources
+              // Turn off network delay only if told explicitly.
+              installNetworkDelay =
+                  if context.installNetworkDelay = Some false then
+                      Some false
+                  else
+                      context.installNetworkDelay }
 
     let tier1 = StableApproximateTier1CoreSets context.image
     let sdf = List.find (fun (cs: CoreSet) -> cs.name.StringName = "sdf") tier1
