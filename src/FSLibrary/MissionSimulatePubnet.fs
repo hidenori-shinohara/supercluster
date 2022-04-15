@@ -79,8 +79,11 @@ let simulatePubnet (context: MissionContext) =
             // to fail asap in case of a misconfiguration
             formation.WaitUntilSynced fullCoreSet
             formation.UpgradeProtocolToLatest tier1
-            formation.UpgradeMaxTxSetSize tier1 1000000
+            // Each ledger contains at most 1000 txns.
+            formation.UpgradeMaxTxSetSize tier1 1000
 
-            formation.RunLoadgen sdf context.GenerateAccountCreationLoad
+            // It is necessary to use a smaller batch size
+            // as the max tx set size isn't that big.
+            formation.RunLoadgen sdf { context.GenerateAccountCreationLoad with batchsize = 10 }
             formation.RunLoadgen sdf context.GeneratePretendLoad
             formation.EnsureAllNodesInSync fullCoreSet)
