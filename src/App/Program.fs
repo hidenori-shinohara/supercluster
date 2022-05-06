@@ -76,6 +76,8 @@ type MissionOptions
         sleepMainThread: int option,
         enableFlowControl: bool option,
         flowControlSendMoreBatchSize: int option,
+        floodTxLazyProbability: double option,
+        floodScpLazyProbability: double option,
         simulateApplyDuration: seq<string>,
         simulateApplyWeight: seq<string>,
         networkSizeLimit: int,
@@ -271,6 +273,16 @@ type MissionOptions
              HelpText = "When flow control is enabled, peer asks for more data every time it processes `FLOW_CONTROL_SEND_MORE_BATCH_SIZE` messages (See FLOW_CONTROL_SEND_MORE_BATCH_SIZE)",
              Required = false)>]
     member self.FlowControlSendMoreBatchSize = flowControlSendMoreBatchSize
+
+    [<Option("flood-scp-lazy-probability",
+             HelpText = "the ratio [0.0, 1.0] of scp messages to flood lazily",
+             Required = false)>]
+    member self.FloodScpLazyProbability = floodScpLazyProbability
+
+    [<Option("flood-tx-lazy-probability",
+             HelpText = "the ratio [0.0, 1.0] of tx messages to flood lazily",
+             Required = false)>]
+    member self.FloodTxLazyProbability = floodTxLazyProbability
 
     [<Option("simulate-apply-duration",
              HelpText = "A space-separated list of how much to sleep for in simulation (See OP_APPLY_SLEEP_TIME_DURATION_FOR_TESTING)",
@@ -490,6 +502,8 @@ let main argv =
                                sleepMainThread = mission.SleepMainThread
                                enableFlowControl = mission.EnableFlowControl
                                flowControlSendMoreBatchSize = mission.FlowControlSendMoreBatchSize
+                               floodTxLazyProbability = mission.FloodTxLazyProbability
+                               floodScpLazyProbability = mission.FloodScpLazyProbability
                                tier1OrgsToAdd = mission.Tier1OrgsToAdd
                                nonTier1NodesToAdd = mission.NonTier1NodesToAdd
                                networkSizeLimit = mission.NetworkSizeLimit

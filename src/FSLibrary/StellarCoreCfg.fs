@@ -266,6 +266,18 @@ type StellarCoreCfg =
         t.Add("QUORUM_INTERSECTION_CHECKER", false) |> ignore
         t.Add("MANUAL_CLOSE", self.manualClose) |> ignore
 
+        match self.network.missionContext.floodTxLazyProbability with
+        | None -> ()
+        | Some p ->
+            assert (0.0 <= p && p <= 1.0)
+            t.Add("FLOOD_TX_LAZY_PROBABILITY", p) |> ignore
+
+        match self.network.missionContext.floodScpLazyProbability with
+        | None -> ()
+        | Some p ->
+            assert (0.0 <= p && p <= 1.0)
+            t.Add("FLOOD_SCP_LAZY_PROBABILITY", p) |> ignore
+
         let invList =
             match self.invariantChecks with
             | AllInvariants -> [ ".*" ]

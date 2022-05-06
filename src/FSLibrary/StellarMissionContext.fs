@@ -65,6 +65,8 @@ type MissionContext =
       sleepMainThread: int option
       enableFlowControl: bool option
       flowControlSendMoreBatchSize: int option
+      floodTxLazyProbability: double option
+      floodScpLazyProbability: double option
       tier1OrgsToAdd: int
       nonTier1NodesToAdd: int
       randomSeed: int

@@ -67,6 +67,8 @@ let ctx : MissionContext =
       sleepMainThread = None
       enableFlowControl = None
       flowControlSendMoreBatchSize = None
+      floodTxLazyProbability = Some 0.5
+      floodScpLazyProbability = Some 0.2
       installNetworkDelay = Some true
       simulateApplyDuration =
           Some(
@@ -135,6 +137,8 @@ type Tests(output: ITestOutputHelper) =
         Assert.Contains("HTTP_PORT = " + CfgVal.httpPort.ToString(), toml)
         Assert.Contains("LOADGEN_OP_COUNT_FOR_TESTING = [1, 2, 10]", toml)
         Assert.Contains("LOADGEN_OP_COUNT_DISTRIBUTION_FOR_TESTING = [80, 19, 1]", toml)
+        Assert.Contains("FLOOD_TX_LAZY_PROBABILITY = 0.5", toml)
+        Assert.Contains("FLOOD_SCP_LAZY_PROBABILITY = 0.2", toml)
 
     // Test init config
     // REVERTME: temporarily avoid looking for HTTP_PORT=0 on InitContainers
