@@ -150,6 +150,7 @@ type StellarCoreCfg =
       maxSlotsToRemember: int
       maxBatchWriteCount: int
       inMemoryMode: bool
+      pullMode: bool
       containerType: CoreContainerType }
 
     member self.ToTOML() : TomlTable =
@@ -190,6 +191,9 @@ type StellarCoreCfg =
         t.Add("PREFERRED_PEERS_ONLY", self.preferredPeersOnly) |> ignore
         t.Add("COMMANDS", logLevelCommands) |> ignore
         t.Add("CATCHUP_COMPLETE", self.catchupMode = CatchupComplete) |> ignore
+
+
+        t.Add("ENABLE_PULL_MODE", self.pullMode) |> ignore
 
         match self.network.missionContext.peerReadingCapacity, self.network.missionContext.peerFloodCapacity with
         | None, None -> ()
@@ -442,6 +446,7 @@ type NetworkCfg with
           maxSlotsToRemember = opts.maxSlotsToRemember
           maxBatchWriteCount = opts.maxBatchWriteCount
           inMemoryMode = opts.inMemoryMode
+          pullMode = opts.pullMode
           containerType = MainCoreContainer }
 
     member self.StellarCoreCfg(c: CoreSet, i: int, ctype: CoreContainerType) : StellarCoreCfg =
@@ -476,4 +481,5 @@ type NetworkCfg with
           maxSlotsToRemember = c.options.maxSlotsToRemember
           maxBatchWriteCount = c.options.maxBatchWriteCount
           inMemoryMode = c.options.inMemoryMode
+          pullMode = c.options.pullMode
           containerType = ctype }
