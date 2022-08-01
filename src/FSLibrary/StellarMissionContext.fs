@@ -71,4 +71,5 @@ type MissionContext =
       randomSeed: int
       tag: string option
       networkSizeLimit: int
-      pubnetParallelCatchupStartingLedger: int }
+      pubnetParallelCatchupStartingLedger: int
+      pullModeRatio: double }

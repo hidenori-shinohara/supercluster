@@ -518,6 +518,9 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) (enforceMin
         |> Array.map (fun (k: KeyPair) -> (k.PublicKey, Map.find k.PublicKey preferredPeersMapForAllNodes))
         |> Map.ofArray
 
+    let flipPullModeRandomly (opt: CoreSetOptions) = { opt with pullMode = random.NextDouble() < context.pullModeRatio }
+
+
     let miscCoreSets : CoreSet array =
         Array.mapi
             (fun (_: int) (n: PubnetNode.Root) ->
@@ -533,7 +536,7 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) (enforceMin
                           preferredPeersMap = Some(keysToPreferredPeersMap keys) }
 
                 let shouldWaitForConsensus = manualclose
-                let coreSetOpts = coreSetOpts.WithWaitForConsensus shouldWaitForConsensus
+                let coreSetOpts = flipPullModeRandomly (coreSetOpts.WithWaitForConsensus shouldWaitForConsensus)
                 makeCoreSetWithExplicitKeys hdn coreSetOpts keys)
             miscNodes
 
@@ -553,7 +556,7 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) (enforceMin
                           preferredPeersMap = Some(keysToPreferredPeersMap keys) }
 
                 let shouldWaitForConsensus = manualclose
-                let coreSetOpts = coreSetOpts.WithWaitForConsensus shouldWaitForConsensus
+                let coreSetOpts = flipPullModeRandomly (coreSetOpts.WithWaitForConsensus shouldWaitForConsensus)
                 makeCoreSetWithExplicitKeys hdn coreSetOpts keys)
             groupedOrgNodes
 

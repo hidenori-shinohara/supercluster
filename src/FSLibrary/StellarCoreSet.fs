@@ -168,7 +168,8 @@ type CoreSetOptions =
       dumpDatabase: bool
       maxSlotsToRemember: int
       maxBatchWriteCount: int
-      inMemoryMode: bool }
+      inMemoryMode: bool
+      pullMode: bool }
 
     member self.WithWaitForConsensus(w: bool) =
         { self with initialization = { self.initialization with waitForConsensus = w } }
@@ -199,7 +200,8 @@ type CoreSetOptions =
           dumpDatabase = true
           maxSlotsToRemember = 12
           maxBatchWriteCount = 1024
-          inMemoryMode = false }
+          inMemoryMode = false
+          pullMode = false }
 
 type CoreSet =
     { name: CoreSetName

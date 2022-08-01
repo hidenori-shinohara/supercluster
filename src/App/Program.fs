@@ -84,7 +84,8 @@ type MissionOptions
         nonTier1NodesToAdd: int,
         randomSeed: int,
         pubnetParallelCatchupStartingLedger: int,
-        tag: string option
+        tag: string option,
+        pullModeRatio: double
     ) =
 
     [<Option('k', "kubeconfig", HelpText = "Kubernetes config file", Required = false, Default = "~/.kube/config")>]
@@ -314,6 +315,9 @@ type MissionOptions
     [<Option("tag", HelpText = "optional name to tag the run with", Required = false)>]
     member self.Tag = tag
 
+    [<Option("pull-mode-ratio", HelpText = "Ratio of nodes with pull mode [0, 1]", Required = false)>]
+    member self.PullModeRatio = pullModeRatio
+
 
 let splitLabel (lab: string) : (string * string option) =
     match lab.Split ':' with
@@ -404,7 +408,8 @@ let main argv =
                   randomSeed = 0
                   networkSizeLimit = 0
                   pubnetParallelCatchupStartingLedger = 0
-                  tag = None }
+                  tag = None
+                  pullModeRatio = 0.0 }
 
             let nCfg = MakeNetworkCfg ctx [] None
             use formation = kube.MakeEmptyFormation nCfg
@@ -501,7 +506,8 @@ let main argv =
                                networkSizeLimit = mission.NetworkSizeLimit
                                randomSeed = mission.RandomSeed
                                pubnetParallelCatchupStartingLedger = mission.PubnetParallelCatchupStartingLedger
-                               tag = mission.Tag }
+                               tag = mission.Tag
+                               pullModeRatio = mission.PullModeRatio }
 
                          allMissions.[m] missionContext
 
