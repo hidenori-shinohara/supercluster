@@ -265,6 +265,7 @@ type StellarCoreCfg =
 
         t.Add("QUORUM_INTERSECTION_CHECKER", false) |> ignore
         t.Add("MANUAL_CLOSE", self.manualClose) |> ignore
+        t.Add("LOG_FILE_PATH", "") |> ignore
 
         let invList =
             match self.invariantChecks with
