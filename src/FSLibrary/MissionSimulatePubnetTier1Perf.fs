@@ -127,7 +127,7 @@ let simulatePubnetTier1Perf (context: MissionContext) =
 
             for run in 1 .. numRuns do
                 LogInfo "Starting max TPS run %i" run
-                let resultRate = binarySearchWithThreshold 291 309 threshold
+                let resultRate = binarySearchWithThreshold context.txRate context.maxTxRate threshold
                 results <- List.append results [ resultRate ]
                 if run < numRuns then wait ()
 
