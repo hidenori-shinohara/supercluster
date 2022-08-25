@@ -518,7 +518,12 @@ let FullPubnetCoreSets (context: MissionContext) (manualclose: bool) (enforceMin
         |> Array.map (fun (k: KeyPair) -> (k.PublicKey, Map.find k.PublicKey preferredPeersMapForAllNodes))
         |> Map.ofArray
 
-    let flipPullModeRandomly (opt: CoreSetOptions) = { opt with pullMode = random.NextDouble() < context.pullModeRatio }
+    let flipPullModeRandomly (opt: CoreSetOptions) =
+        { opt with
+              pullMode =
+                  match context.pullModeRatio with
+                  | Some r -> Some(random.NextDouble() < r)
+                  | None -> None }
 
 
     let miscCoreSets : CoreSet array =

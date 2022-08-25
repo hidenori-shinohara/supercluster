@@ -85,7 +85,7 @@ type MissionOptions
         randomSeed: int,
         pubnetParallelCatchupStartingLedger: int,
         tag: string option,
-        pullModeRatio: double
+        pullModeRatio: double option
     ) =
 
     [<Option('k', "kubeconfig", HelpText = "Kubernetes config file", Required = false, Default = "~/.kube/config")>]
@@ -409,7 +409,7 @@ let main argv =
                   networkSizeLimit = 0
                   pubnetParallelCatchupStartingLedger = 0
                   tag = None
-                  pullModeRatio = 0.0 }
+                  pullModeRatio = None }
 
             let nCfg = MakeNetworkCfg ctx [] None
             use formation = kube.MakeEmptyFormation nCfg

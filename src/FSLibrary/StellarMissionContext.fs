@@ -72,4 +72,4 @@ type MissionContext =
       tag: string option
       networkSizeLimit: int
       pubnetParallelCatchupStartingLedger: int
-      pullModeRatio: double }
+      pullModeRatio: double option }

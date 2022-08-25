@@ -150,7 +150,7 @@ type StellarCoreCfg =
       maxSlotsToRemember: int
       maxBatchWriteCount: int
       inMemoryMode: bool
-      pullMode: bool
+      pullMode: bool option
       containerType: CoreContainerType }
 
     member self.ToTOML() : TomlTable =
@@ -192,8 +192,9 @@ type StellarCoreCfg =
         t.Add("COMMANDS", logLevelCommands) |> ignore
         t.Add("CATCHUP_COMPLETE", self.catchupMode = CatchupComplete) |> ignore
 
-
-        t.Add("ENABLE_PULL_MODE", self.pullMode) |> ignore
+        // Some tests may run a version that doesn't recognize this config value.
+        if self.pullMode.IsSome then
+            t.Add("ENABLE_PULL_MODE", self.pullMode.Value) |> ignore
 
         match self.network.missionContext.peerReadingCapacity, self.network.missionContext.peerFloodCapacity with
         | None, None -> ()
